@@ -1,0 +1,10 @@
+================================================================================
+LOCATION MATCHING VALIDATION REPORT
+================================================================================
+
+Loading raw signups from: C:\scripts\Projects\pythonprojects\2026-02-LCRC-District-Chair-sheet\raw_signups\all_signup_genius.csv
+Total signups: 2972
+Total precincts in master: 65
+
+Unique locations in raw signups: 145
+

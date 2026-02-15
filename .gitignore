@@ -1,0 +1,10 @@
+*.xls*
+*.csv
+Thumbs.db
+desktop.ini
+.DS_Store
+.env
+*.log
+.vscode/
+node_modules/
+__pycache__/
