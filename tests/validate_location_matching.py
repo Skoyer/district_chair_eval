@@ -1,99 +1,36 @@
+"""
+Location matching validation script.
+Run this before processing to identify matching issues.
+"""
 import pandas as pd
 import sys
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "src"))
 
-from precinct_matching import find_precinct_match_enhanced, load_precinct_address
+from precinct_matching import find_precinct_match_enhanced, load_precinct_address, load_aliases
 
-PRECINCT_MASTER_DATA = """
-PR_NAME	PR_NUMBER	DISTRICT
-ALGONKIAN	101	ALGONKIAN
-ASHBURN	102	ASHBURN
-ASHBURN FARM	103	ASHBURN
-BELMONT	104	LEESBURG
-BELMONT RIDGE	105	LEESBURG
-BLUE RIDGE	106	BLUE RIDGE
-BRAMBLETON	107	ASHBURN
-BROAD RUN	108	BROAD RUN
-CATOCTIN	109	CATOCTIN
-DULLES	110	DULLES
-EAST BROAD RUN	111	ASHBURN
-EVERGREEN	112	STERLING
-GOOSE CREEK	113	ASHBURN
-HARMONY	114	LEESBURG
-LEESBURG	115	LEESBURG
-LITTLE RIVER	116	LITTLE RIVER
-LOWES ISLAND	117	ALGONKIAN
-MERCER	118	ALGONKIAN
-MOOREFIELD	119	ASHBURN
-POTOMAC	120	STERLING
-ROLLING RIDGE	121	LEESBURG
-RUST	122	LEESBURG
-SENECA	123	BROAD RUN
-SHENANDOAH	124	STERLING
-SLEETER LAKE	125	LEESBURG
-STERLING	126	STERLING
-SUGARLAND	127	STERLING
-SULLY	128	DULLES
-TUSCARORA	129	LEESBURG
-WOODGROVE	130	CATOCTIN
-ARCOLA	201	DULLES
-ASHBURN LIBRARY	202	ASHBURN
-BELMONT STATION	203	LEESBURG
-CASCADES	204	STERLING
-COUNTRYSIDE	205	STERLING
-CREIGHTON'S CORNER	206	LEESBURG
-DOMINION	207	DULLES
-EAGLE RIDGE	616	BROAD RUN
-FARMWELL STATION	208	ASHBURN
-FOREST GROVE	209	BROAD RUN
-FRANKLIN PARK	210	DULLES
-GALILEE CHURCH	219	ALGONKIAN
-HERITAGE	211	BROAD RUN
-HUTCHISON FARM	212	BROAD RUN
-LANSDOWNE	213	LEESBURG
-LEGACY	214	ASHBURN
-LINCOLN	215	LEESBURG
-LOUDOUN VALLEY	216	BLUE RIDGE
-MILL CREEK	217	DULLES
-MOOREFIELD STATION	218	ASHBURN
-NEWTON-LEE	220	STERLING
-NORTH POINT	221	ASHBURN
-PINEBROOK	222	DULLES
-POTOMAC FALLS	223	STERLING
-RIVERSIDE	224	LEESBURG
-ROCK RIDGE	225	ASHBURN
-ROSA LEE CARTER	226	BROAD RUN
-RYAN	227	ASHBURN
-SELDENS LANDING	228	BROAD RUN
-SMART'S MILL	229	BROAD RUN
-STONE BRIDGE	230	DULLES
-STONE HILL	231	ASHBURN
-TRAILSIDE	232	ASHBURN
-VILLAGE	233	LEESBURG
-WILLOWSFORD	234	ASHBURN
-"""
 
-COL_MAP = {
-    "sign_up": "Sign Up",
-    "start_datetime": "Start Date/Time (mm/dd/yyyy)",
-    "end_datetime": "End Date/Time (mm/dd/yyyy)",
-    "location": "Location",
-    "item": "Item",
-    "first_name": "First Name",
-    "last_name": "Last Name",
-    "email": "Email",
-    "phone": "Phone",
-    "phone_type": "PhoneType",
-    "sign_up_timestamp": "Sign Up Timestamp",
-}
+def load_precinct_master_from_csv(project_root):
+    """Load precinct master from CSV file."""
+    precinct_csv = project_root / "reference_data" / "precinct_address_information.csv"
+    
+    if not precinct_csv.exists():
+        raise FileNotFoundError(f"Precinct file not found: {precinct_csv}")
+    
+    df = pd.read_csv(precinct_csv)
+    df['Number & Name'] = df['Number & Name'].str.strip()
+    number_and_name_parts = df['Number & Name'].str.extract(r'^(\d+)\s*-\s*(.+)$')
+    
+    df_mapped = pd.DataFrame({
+        'PR_NAME': number_and_name_parts[1].str.strip().str.upper(),
+        'PR_NUMBER': number_and_name_parts[0].str.strip(),
+        'PR_DISTRICT': df['District'].str.strip().str.upper()
+    })
+    
+    return df_mapped, df
 
-def load_precinct_master():
-    from io import StringIO
-    df = pd.read_csv(StringIO(PRECINCT_MASTER_DATA), sep="\t")
-    return df
 
 def create_precinct_lookup(precinct_master):
     precinct_lookup = {}
@@ -103,37 +40,63 @@ def create_precinct_lookup(precinct_master):
         precinct_lookup[pr_name] = pr_display
     return precinct_lookup
 
+
 def validate_location_matching():
     print("=" * 80)
     print("LOCATION MATCHING VALIDATION REPORT (Enhanced with Fuzzy Matching)")
     print("=" * 80)
     print()
 
-    raw_signups_path = project_root / "raw_signups" / "all_signup_genius.csv"
+    raw_dir = project_root / "input"
+    csv_files = list(raw_dir.glob("*.csv")) + list(raw_dir.glob("*.xlsx")) + list(raw_dir.glob("*.xls"))
     
-    if not raw_signups_path.exists():
-        print(f"ERROR: Raw signups file not found at {raw_signups_path}")
+    if not csv_files:
+        print(f"ERROR: No raw signup files found in {raw_dir}")
         return False
 
-    print(f"Loading raw signups from: {raw_signups_path}")
-    raw = pd.read_csv(raw_signups_path)
+    print(f"Found {len(csv_files)} signup files")
+    
+    # Load all raw files
+    all_raw = []
+    for file_path in csv_files:
+        print(f"Loading: {file_path.name}")
+        if file_path.suffix.lower() == '.csv':
+            df = pd.read_csv(file_path)
+        else:
+            df = pd.read_excel(file_path)
+        df['__source_file'] = file_path.name
+        all_raw.append(df)
+    
+    raw = pd.concat(all_raw, ignore_index=True)
+    
+    # Normalize column names
+    col_map = {
+        "sign_up": "Sign Up",
+        "start_datetime": "Start Date/Time (mm/dd/yyyy)",
+        "end_datetime": "End Date/Time (mm/dd/yyyy)",
+        "location": "Location",
+        "item": "Item",
+        "first_name": "First Name",
+        "last_name": "Last Name",
+        "email": "Email",
+        "phone": "Phone",
+        "phone_type": "PhoneType",
+        "sign_up_timestamp": "Sign Up Timestamp",
+    }
     
     col_rename = {}
-    for key, orig in COL_MAP.items():
+    for key, orig in col_map.items():
         for col in raw.columns:
             if col.strip().lower() == orig.strip().lower():
                 col_rename[col] = key
     raw = raw.rename(columns=col_rename)
     
-    precinct_master = load_precinct_master()
+    precinct_master, precinct_address_df = load_precinct_master_from_csv(project_root)
     precinct_lookup = create_precinct_lookup(precinct_master)
+    aliases = load_aliases(project_root)
     
-    precinct_address_df = load_precinct_address(project_root)
-    if precinct_address_df is not None:
-        print(f"✓ Loaded precinct address data: {len(precinct_address_df)} precincts")
-    else:
-        print("⚠️  Precinct address data not found - using basic matching only")
-    
+    print(f"✓ Loaded precinct address data: {len(precinct_address_df)} precincts")
+    print(f"✓ Loaded {len(aliases)} aliases")
     print(f"Total signups: {len(raw)}")
     print(f"Total precincts in master: {len(precinct_lookup)}")
     print()
@@ -144,16 +107,21 @@ def validate_location_matching():
 
     unmatched_locations = []
     matched_exact = []
+    matched_alias = []
     matched_substring = []
     matched_word = []
     matched_fuzzy_polling = []
     matched_fuzzy_address = []
     
     for location in unique_locations:
-        match_result, match_type = find_precinct_match_enhanced(location, precinct_lookup, precinct_address_df)
+        match_result, match_type = find_precinct_match_enhanced(
+            location, precinct_lookup, precinct_address_df, aliases
+        )
         
         if match_type == "no_match":
             unmatched_locations.append(location)
+        elif match_type == "alias":
+            matched_alias.append((location, match_result))
         elif match_type == "exact":
             matched_exact.append((location, match_result))
         elif match_type == "substring":
@@ -165,6 +133,7 @@ def validate_location_matching():
         elif match_type == "address_fuzzy":
             matched_fuzzy_address.append((location, match_result))
 
+    print(f"✓ Alias matches: {len(matched_alias)}")
     print(f"✓ Exact matches: {len(matched_exact)}")
     print(f"✓ Substring matches: {len(matched_substring)}")
     print(f"✓ Word-based matches: {len(matched_word)}")
@@ -172,6 +141,14 @@ def validate_location_matching():
     print(f"✓ Fuzzy address matches: {len(matched_fuzzy_address)}")
     print(f"✗ Unmatched locations: {len(unmatched_locations)}")
     print()
+
+    if matched_alias:
+        print("-" * 80)
+        print("ALIAS MATCHES:")
+        print("-" * 80)
+        for location, match in sorted(matched_alias):
+            print(f"  '{location}' → {match}")
+        print()
 
     if matched_fuzzy_polling:
         print("-" * 80)
@@ -241,13 +218,16 @@ def validate_location_matching():
         print("-" * 80)
         print("1. Check if these are valid precinct locations")
         print("2. Update reference_data/precinct_address_information.csv with missing locations")
-        print("3. Verify location names in SignUpGenius match official precinct names")
-        print("4. Consider adding location aliases to the matching logic")
+        print("3. Add aliases to reference_data/aliases.json for common variations")
+        print("4. Verify location names in SignUpGenius match official precinct names")
         print()
 
     total_matched = len(unique_locations) - len(unmatched_locations)
+    match_rate = (total_matched / len(unique_locations) * 100) if unique_locations.size > 0 else 0
+    
     print("=" * 80)
-    print(f"SUMMARY: {total_matched}/{len(unique_locations)} locations matched successfully")
+    print(f"SUMMARY: {total_matched}/{len(unique_locations)} locations matched successfully ({match_rate:.1f}%)")
+    print(f"  - Alias: {len(matched_alias)}")
     print(f"  - Exact: {len(matched_exact)}")
     print(f"  - Substring: {len(matched_substring)}")
     print(f"  - Word-based: {len(matched_word)}")
@@ -257,6 +237,11 @@ def validate_location_matching():
 
     return len(unmatched_locations) == 0
 
-if __name__ == "__main__":
+
+def main():
     success = validate_location_matching()
     sys.exit(0 if success else 1)
+
+
+if __name__ == "__main__":
+    main()

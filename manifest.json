@@ -1,0 +1,95 @@
+{
+  "name": "LCRC Election Volunteer Signup Processor",
+  "version": "2.0.0",
+  "description": "Processes volunteer signup data for election poll workers across 107 precincts in Loudoun County, Virginia",
+  "programs": [
+    {
+      "path": "app.py",
+      "description": "Main entry point with CLI arguments",
+      "usage": "python app.py [process|validate|report|dashboard] [options]"
+    },
+    {
+      "path": "src/main_processor.py",
+      "description": "Core processing logic with deduplication and enhanced matching"
+    },
+    {
+      "path": "src/precinct_matching.py",
+      "description": "Fuzzy matching with aliases and caching"
+    },
+    {
+      "path": "src/volunteer_utils.py",
+      "description": "Volunteer affinity scoring and auto-suggestions"
+    },
+    {
+      "path": "src/reporting.py",
+      "description": "Needs reports and dashboard generation"
+    },
+    {
+      "path": "tests/validate_location_matching.py",
+      "description": "Pre-processing validation script"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "input/*.csv",
+      "description": "Volunteer signup CSV files from SignUpGenius"
+    },
+    {
+      "path": "input/*.xlsx",
+      "description": "Volunteer signup Excel files"
+    },
+    {
+      "path": "reference_data/precinct_address_information.csv",
+      "description": "Precinct master data with addresses"
+    },
+    {
+      "path": "reference_data/aliases.json",
+      "description": "Location aliases (auto-created)"
+    },
+    {
+      "path": "VolunteerMaster.csv",
+      "description": "Historical volunteer data (auto-created)"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "VolunteerMaster.csv",
+      "description": "Master volunteer database with history"
+    },
+    {
+      "path": "upcoming_Assignments.csv",
+      "description": "Complete assignment schedule by precinct and time slot"
+    },
+    {
+      "path": "output/needs_report.csv",
+      "description": "Precinct staffing needs analysis"
+    },
+    {
+      "path": "output/VolunteerMaster_suggestions.csv",
+      "description": "High-affinity volunteer suggestions"
+    },
+    {
+      "path": "output/review_needed.csv",
+      "description": "Volunteers needing manual review"
+    },
+    {
+      "path": "output/dashboard.html",
+      "description": "Interactive HTML dashboard with charts"
+    },
+    {
+      "path": "archive/",
+      "description": "Timestamped backups of previous runs"
+    },
+    {
+      "path": "app.log",
+      "description": "Application log file"
+    }
+  ],
+  "dependencies": [
+    "pandas",
+    "fuzzywuzzy",
+    "python-Levenshtein",
+    "matplotlib",
+    "openpyxl"
+  ]
+}

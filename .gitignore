@@ -8,3 +8,6 @@ desktop.ini
 .vscode/
 node_modules/
 __pycache__/
+archive/
+output/
+.pytest_cache/

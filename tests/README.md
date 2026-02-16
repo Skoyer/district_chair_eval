@@ -38,7 +38,55 @@ python tests/validate_location_matching.py
 - When volunteers are unexpectedly missing from output files
 - When new precincts are added to the system
 
+LOCATION MATCHING VALIDATION REPORT
+================================================================================
+
+Loading raw signups from: .../raw_signups/all_signup_genius.csv
+Total signups: 2972
+Total precincts in master: 65
+
+Unique locations in raw signups: 145
+
+✓ Exact matches: 1
+✓ Substring matches: 67
+✓ Word-based matches: 1
+✗ Unmatched locations: 76
+
+--------------------------------------------------------------------------------
+⚠️  UNMATCHED LOCATIONS (NEED ATTENTION):
+--------------------------------------------------------------------------------
+  'Briar Woods High School' (25 signups)
+  'John Champe High School' (24 signups)
+  ...
+
+These locations will result in volunteers not appearing in upcoming_Assignments.csv
+```
+=======
 **Example output:**
+```
+================================================================================
+LOCATION MATCHING VALIDATION REPORT
+================================================================================
+
+Loading raw signups from: .../input/all_signup_genius.csv
+Total signups: 2972
+Total precincts in master: 65
+
+Unique locations in raw signups: 145
+
+✓ Exact matches: 1
+✓ Substring matches: 67
+✓ Word-based matches: 1
+✗ Unmatched locations: 76
+
+--------------------------------------------------------------------------------
+⚠️  UNMATCHED LOCATIONS (NEED ATTENTION):
+--------------------------------------------------------------------------------
+  'Briar Woods High School' (25 signups)
+  'John Champe High School' (24 signups)
+  ...
+
+These locations will result in volunteers not appearing in upcoming_Assignments.csv
 ```
 ================================================================================
 LOCATION MATCHING VALIDATION REPORT
